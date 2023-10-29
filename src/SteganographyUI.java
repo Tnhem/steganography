@@ -1,11 +1,20 @@
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import javax.imageio.ImageIO;
 
 public class SteganographyUI {
+    private static final String ENCRYPTION_KEY = "ThisIsASecretKey"; // You should use a secure key generation mechanism
 
     private static JTextField inputFilePath;
     private static JTextField outputFilePath;
@@ -101,11 +110,13 @@ public class SteganographyUI {
             try {
                 BufferedImage extractedImage = ImageIO.read(new File(outputFilePath.getText()));
                 String extractedText = extractText(extractedImage);
+                String decryptedMessage = EncryptionUtils.decrypt(extractedText, ENCRYPTION_KEY);
 
                 JFrame outputFrame = new JFrame("Extracted Text");
                 JTextArea outputTextArea = new JTextArea(5, 20);
-                outputTextArea.setText(extractedText);
+                outputTextArea.setText(decryptedMessage);
                 outputTextArea.setEditable(false);
+                System.out.println("Decrypted Output: " + decryptedMessage);
 
                 JPanel outputPanel = new JPanel();
                 outputPanel.add(outputTextArea);
@@ -115,6 +126,16 @@ public class SteganographyUI {
 
             } catch (IOException ex) {
                 System.out.println("Error: " + ex.getMessage());
+            } catch (NoSuchPaddingException ex) {
+                throw new RuntimeException(ex);
+            } catch (IllegalBlockSizeException ex) {
+                throw new RuntimeException(ex);
+            } catch (NoSuchAlgorithmException ex) {
+                throw new RuntimeException(ex);
+            } catch (BadPaddingException ex) {
+                throw new RuntimeException(ex);
+            } catch (InvalidKeyException ex) {
+                throw new RuntimeException(ex);
             }
         });
 
@@ -138,7 +159,16 @@ public class SteganographyUI {
             try {
                 BufferedImage originalImage = ImageIO.read(new File(inputFilePath.getText()));
                 String secretMessage = inputText.getText();
-                BufferedImage steganographicImage = hideText(originalImage, secretMessage);
+
+                // Print the original input before encryption
+                System.out.println("Original Input: " + secretMessage);
+
+                // Encrypt the secret message
+                String encryptedMessage = EncryptionUtils.encrypt(secretMessage, ENCRYPTION_KEY);
+
+                // Hide the encrypted message in the image
+                BufferedImage steganographicImage = hideText(originalImage, encryptedMessage);
+
 
                 JFileChooser fileChooser = new JFileChooser();
                 int returnValue = fileChooser.showSaveDialog(null);
@@ -147,10 +177,43 @@ public class SteganographyUI {
                     ImageIO.write(steganographicImage, "png", selectedFile);
                     outputFilePath.setText(selectedFile.getAbsolutePath());
                 }
-            } catch (IOException ex) {
+            } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | BadPaddingException |
+                     IllegalBlockSizeException | NoSuchPaddingException ex) {
                 System.out.println("Error: " + ex.getMessage());
             }
         });
         return encodeButton;
     }
+
+    private static class EncryptionUtils {
+        private static final String AES = "AES";
+
+        public static String encrypt(String secret, String key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+            try {
+                Cipher cipher = Cipher.getInstance(AES);
+                SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), AES);
+                cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+                byte[] encryptedBytes = cipher.doFinal(secret.getBytes());
+                return Base64.getEncoder().encodeToString(encryptedBytes);
+            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException |
+                     IllegalBlockSizeException ex) {
+                throw new RuntimeException("Encryption failed: " + ex.getMessage());
+            }
+        }
+
+        public static String decrypt(String encryptedSecret, String key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+            try {
+                Cipher cipher = Cipher.getInstance(AES);
+                SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), AES);
+                cipher.init(Cipher.DECRYPT_MODE, secretKey);
+                byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedSecret));
+                return new String(decryptedBytes);
+            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException |
+                     IllegalBlockSizeException ex) {
+                throw new RuntimeException("Decryption failed: " + ex.getMessage());
+            }
+        }
+    }
 }
+
+
