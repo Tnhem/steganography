@@ -14,12 +14,12 @@ import java.util.Base64;
 import javax.imageio.ImageIO;
 
 public class SteganographyUI {
-    private static final String ENCRYPTION_KEY = "ThisIsASecretKey"; // You should use a secure key generation mechanism
-
+    private static final String ENCRYPTION_KEY = "ThisIsASecretKez"; // Should use a secure key generation mechanism
     private static JTextField inputFilePath;
     private static JTextField outputFilePath;
     private static JTextArea inputText;
     private static final int MAX_MESSAGE_LENGTH = 10000; // Maximum length of the message to be hidden
+
 
     public static BufferedImage hideText(BufferedImage img, String text) {
         int width = img.getWidth();
@@ -126,15 +126,8 @@ public class SteganographyUI {
 
             } catch (IOException ex) {
                 System.out.println("Error: " + ex.getMessage());
-            } catch (NoSuchPaddingException ex) {
-                throw new RuntimeException(ex);
-            } catch (IllegalBlockSizeException ex) {
-                throw new RuntimeException(ex);
-            } catch (NoSuchAlgorithmException ex) {
-                throw new RuntimeException(ex);
-            } catch (BadPaddingException ex) {
-                throw new RuntimeException(ex);
-            } catch (InvalidKeyException ex) {
+            } catch (NoSuchPaddingException | NoSuchAlgorithmException | IllegalBlockSizeException |
+                     BadPaddingException | InvalidKeyException ex) {
                 throw new RuntimeException(ex);
             }
         });
@@ -208,10 +201,22 @@ public class SteganographyUI {
                 cipher.init(Cipher.DECRYPT_MODE, secretKey);
                 byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedSecret));
                 return new String(decryptedBytes);
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException |
-                     IllegalBlockSizeException ex) {
+            } catch (BadPaddingException ex) {
+                String errorMessage = "Decryption failed: " + ex.getMessage();
+                displayErrorUI(errorMessage);
+                throw new RuntimeException(errorMessage);
+            } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException ex) {
                 throw new RuntimeException("Decryption failed: " + ex.getMessage());
             }
+        }
+
+        private static void displayErrorUI(String errorMessage) {
+            JFrame errorFrame = new JFrame("Error");
+            JLabel errorLabel = new JLabel(errorMessage);
+            errorFrame.getContentPane().add(errorLabel, BorderLayout.CENTER);
+            errorFrame.pack();
+            errorFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            errorFrame.setVisible(true);
         }
     }
 }
